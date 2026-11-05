@@ -1,0 +1,8 @@
+{
+  "title": "My Project",
+  "hue": 210,
+  "port": 3002,
+  "owner": { "id": "kuba", "name": "Kuba" },
+  "others": [{ "id": "piotr", "name": "Piotr" }],
+  "plan": { "label": "The plan", "url": "https://example.com/plan" }
+}

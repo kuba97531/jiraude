@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27{{ICON_COLOR}}%27/%3E%3Ctext x=%2732%27 y=%2745%27 font-family=%27Arial,sans-serif%27 font-size=%2738%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27white%27%3E{{INITIAL}}%3C/text%3E%3C/svg%3E">
+<style>
+:root { --bg: #f3f5f7; --panel: #fff; --line: #dde2e8; --fg: #1b232c; --muted: #5d6874; --accent: #2d5b86; --accent-ink: #fff; --warn: #7a4a06; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #12171d; --panel: #1a2129; --line: #2c3640; --fg: #e4e9ee; --muted: #9aa6b2; --accent: #6f9fcf; --accent-ink: #0e151c; --warn: #f1c77a; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+form { width: min(360px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 24px; display: grid; gap: 12px; }
+h1 { margin: 0; font-size: 18px; }
+p { margin: 0; color: var(--muted); font-size: 13px; }
+input { font: inherit; color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; background: var(--bg); }
+button { font: inherit; border: 0; border-radius: 8px; padding: 9px 12px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+.err { color: var(--warn); min-height: 1.5em; font-size: 13px; }
+details { font-size: 13px; color: var(--muted); }
+summary { cursor: pointer; }
+details p { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<style>
+/* this desk's own color, from the server */
+{{THEME}}
+</style>
+</head>
+<body>
+<form id="f">
+  <h1>{{TITLE}}</h1>
+  <p>Tickets between {{OWNER}} and Claude.</p>
+  <input id="pw" type="password" autocomplete="current-password" placeholder="Password" required autofocus>
+  <button type="submit">Sign in</button>
+  <details id="hint"><summary>Show password hint</summary><p>{{HINT}}</p></details>
+  <div class="err" id="err"></div>
+</form>
+<script>
+const hint = document.getElementById("hint");
+if (hint.querySelector("p").textContent.trim() === "") hint.remove();
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = document.getElementById("err");
+  err.textContent = "";
+  const r = await fetch("login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: document.getElementById("pw").value }) }).catch(() => null);
+  if (r && r.ok) { location.reload(); return; }
+  const body = r ? await r.json().catch(() => ({})) : {};
+  err.textContent = body.error || "The app did not answer.";
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+# One desk per instance: /home/<user>/desks/<name> is a clone of this repo with its own config.json.
+#   sudo cp deploy/jiraude@.service /etc/systemd/system/
+#   sudo systemctl enable --now jiraude@<name>
+# Edit User/Group and the paths for your machine.
+[Unit]
+Description=Desk %i (jiraude)
+After=network.target
+
+[Service]
+Type=simple
+User=kuba
+Group=kuba
+WorkingDirectory=/home/kuba/desks/%i
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /home/kuba/desks/%i/server.js
+# server.js exits when it is edited; this brings it back
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/kuba/desks/%i
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

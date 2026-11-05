@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{TITLE}}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27{{ICON_COLOR}}%27/%3E%3Ctext x=%2732%27 y=%2745%27 font-family=%27Arial,sans-serif%27 font-size=%2738%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27white%27%3E{{INITIAL}}%3C/text%3E%3C/svg%3E">
+<style>
+/* A Jira-like desk: views on the left, an issue list or board in the middle, an issue page with its details on the right. */
+:root {
+  --bg: #ffffff; --surface: #f7f8f9; --sunken: #f1f2f4; --line: #dcdfe4; --fg: #172b4d; --muted: #626f86; --faint: #8590a2;
+  --brand: #0c66e4; --brand-ink: #ffffff; --brand-soft: #e9f2ff; --hover: #f1f2f4; --selected: #e9f2ff;
+  --open-bg: #dcdfe4; --open-fg: #44546f; --resolved-bg: #dcfff1; --resolved-fg: #216e4e; --done-bg: #1f845a; --done-fg: #ffffff;
+  --deferred-bg: #fff7d6; --deferred-fg: #7f5f01; --warn-bg: #fff3eb; --warn-fg: #a54800;
+  --bubble: #f7f8f9; --shadow: 0 1px 1px rgba(9,30,66,.25), 0 0 1px rgba(9,30,66,.31);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1d2125; --surface: #22272b; --sunken: #161a1d; --line: #38414a; --fg: #dee4ea; --muted: #9fadbc; --faint: #738496;
+    --brand: #579dff; --brand-ink: #1d2125; --brand-soft: #1c2b41; --hover: #2c333a; --selected: #1c2b41;
+    --open-bg: #38414a; --open-fg: #b6c2cf; --resolved-bg: #164b35; --resolved-fg: #7ee2b8; --done-bg: #4bce97; --done-fg: #1d2125;
+    --deferred-bg: #533f04; --deferred-fg: #f8e6a0; --warn-bg: #4a2b0f; --warn-fg: #fec195;
+    --bubble: #22272b; --shadow: 0 0 0 1px #38414a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1d2125; --surface: #22272b; --sunken: #161a1d; --line: #38414a; --fg: #dee4ea; --muted: #9fadbc; --faint: #738496;
+  --brand: #579dff; --brand-ink: #1d2125; --brand-soft: #1c2b41; --hover: #2c333a; --selected: #1c2b41;
+  --open-bg: #38414a; --open-fg: #b6c2cf; --resolved-bg: #164b35; --resolved-fg: #7ee2b8; --done-bg: #4bce97; --done-fg: #1d2125;
+  --deferred-bg: #533f04; --deferred-fg: #f8e6a0; --warn-bg: #4a2b0f; --warn-fg: #fec195;
+  --bubble: #22272b; --shadow: 0 0 0 1px #38414a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.43 var(--font); -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.key { font-family: var(--font); font-weight: 500; color: var(--brand); white-space: nowrap; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 3px; border: 0; background: var(--sunken); cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn:hover { background: var(--line); }
+.btn.primary { background: var(--brand); color: var(--brand-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.subtle { background: none; }
+.btn.subtle:hover { background: var(--hover); }
+.btn:disabled { opacity: .5; cursor: default; }
+
+/* Top bar */
+.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); border-bottom: 1px solid var(--line); background: var(--bg); }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; color: var(--fg); padding-right: 8px; }
+.listen { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.listen::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.listen.on { color: var(--resolved-fg); }
+.listen.on::before { background: #1f845a; }
+.brand .logo { width: 24px; height: 24px; border-radius: 4px; background: var(--brand); color: var(--brand-ink); display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.search { flex: 1; max-width: 360px; position: relative; }
+.search input { width: 100%; height: 32px; border: 1px solid var(--line); border-radius: 3px; padding: 0 10px; background: var(--surface); }
+.top .spacer { flex: 1; }
+.seg { display: inline-flex; border-radius: 3px; overflow: hidden; background: var(--sunken); }
+.seg button { border: 0; background: none; min-height: 32px; padding: 0 12px; cursor: pointer; font-weight: 500; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--selected); color: var(--brand); }
+
+/* Shell */
+.shell { display: grid; grid-template-columns: 232px 1fr; height: calc(100% - 56px); }
+.nav { border-right: 1px solid var(--line); background: var(--surface); overflow-y: auto; padding: 12px 8px 24px; }
+.nav h3 { margin: 16px 8px 4px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.nav h3:first-child { margin-top: 4px; }
+.nav button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 0 8px; border: 0; border-radius: 3px; background: none; cursor: pointer; text-align: left; color: var(--fg); }
+.nav button:hover { background: var(--hover); }
+.nav button[aria-current="true"] { background: var(--selected); color: var(--brand); font-weight: 600; }
+.nav .count { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nav .count.hot { background: var(--brand); color: var(--brand-ink); border-radius: 10px; padding: 0 7px; font-weight: 600; }
+.main { min-width: 0; overflow-y: auto; }
+.page { padding: 20px max(24px, env(safe-area-inset-right)) 40px max(24px, env(safe-area-inset-left)); max-width: 1400px; }
+.page h1 { font-size: 24px; font-weight: 500; margin: 0 0 4px; }
+.page .lede { color: var(--muted); margin: 0 0 16px; }
+
+
+/* Lozenges */
+.loz { display: inline-block; padding: 0 4px; border-radius: 3px; font-size: 11px; font-weight: 700; line-height: 16px; text-transform: uppercase; white-space: nowrap; background: var(--open-bg); color: var(--open-fg); }
+.loz.resolved { background: var(--resolved-bg); color: var(--resolved-fg); }
+.loz.done { background: var(--done-bg); color: var(--done-fg); }
+.loz.deferred { background: var(--deferred-bg); color: var(--deferred-fg); }
+.loz.archived { background: var(--sunken); color: var(--muted); }
+.av { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 700; flex: none; }
+.who { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); display: inline-block; flex: none; }
+/* Your turn: a filled dot is a reply not read yet, a ring one read and waiting for an answer */
+.dot.read { background: none; box-shadow: inset 0 0 0 2px var(--faint); }
+.loz.new { background: var(--brand); color: var(--brand-ink); margin-right: 6px; }
+.warn-chip { background: var(--warn-bg); color: var(--warn-fg); }
+
+/* Issue list */
+.bulk { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 8px; border-radius: 3px; background: var(--selected); }
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 2px solid var(--line); white-space: nowrap; }
+.table td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.table tr.row { cursor: pointer; }
+.table tr.row:hover td { background: var(--hover); }
+.table .sum { width: 100%; min-width: 220px; }
+.table .sum .t { font-weight: 400; }
+.table .sum .t.unread { font-weight: 600; }
+.table .muted { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.table input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+.table td.c-key { white-space: nowrap; }
+.empty { color: var(--muted); padding: 40px 0; text-align: center; }
+
+/* Board */
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 12px; }
+.col { background: var(--surface); border-radius: 6px; padding: 8px; min-height: 120px; }
+.col h2 { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; margin: 4px 6px 10px; display: flex; gap: 6px; }
+.card { display: grid; gap: 8px; background: var(--bg); border-radius: 3px; box-shadow: var(--shadow); padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+.card:hover { background: var(--hover); }
+.card .foot { display: flex; align-items: center; gap: 8px; }
+.card .foot .key { margin-right: auto; font-size: 12px; }
+
+/* Issue page */
+.crumbs { color: var(--muted); font-size: 13px; margin-bottom: 8px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.crumbs button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0; }
+.crumbs button:hover { color: var(--brand); text-decoration: underline; }
+.issue { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 32px; align-items: start; }
+.issue h1 { font-size: 24px; font-weight: 500; margin: 0 0 12px; overflow-wrap: anywhere; }
+/* The title and Archive stay in view down a long ticket */
+.ihead { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 12px; background: var(--bg); padding: 8px 0; margin: 0 0 8px; border-bottom: 1px solid var(--line); }
+.ihead h1 { flex: 1; min-width: 0; margin: 0; }
+.comment, .newline { scroll-margin-top: 80px; }
+.newline { display: flex; align-items: center; gap: 8px; color: var(--brand); font-size: 12px; font-weight: 700; text-transform: uppercase; margin: 4px 0 14px; }
+.newline::before, .newline::after { content: ""; flex: 1; height: 1px; background: var(--brand); }
+.decision { background: var(--resolved-bg); color: var(--resolved-fg); border-radius: 3px; padding: 8px 12px; margin-bottom: 16px; font-size: 13px; }
+.section-title { font-size: 16px; font-weight: 600; margin: 16px 0 12px; }
+.comment { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; margin-bottom: 18px; }
+.comment .av { width: 32px; height: 32px; font-size: 13px; }
+.comment .meta { font-size: 13px; color: var(--muted); margin-bottom: 2px; }
+.comment .meta b { color: var(--fg); font-weight: 600; margin-right: 6px; }
+.comment .body { overflow-wrap: anywhere; min-width: 0; }
+.comment.mine .body { background: var(--brand-soft); border-radius: 3px; padding: 6px 10px; }
+.body p { margin: 0 0 8px; } .body > :last-child { margin-bottom: 0; }
+.body ul, .body ol { margin: 0 0 8px; padding-left: 22px; }
+.body code { font-family: var(--mono); font-size: 12.5px; background: var(--sunken); padding: 0 3px; border-radius: 3px; }
+.body pre { margin: 0 0 8px; padding: 8px 10px; background: var(--sunken); border-radius: 3px; overflow-x: auto; font: 12.5px/1.5 var(--mono); }
+.body pre code { background: none; padding: 0; }
+.body h3 { font-size: 15px; margin: 6px 0; }
+/* Diagrams sit on a light card in both themes: the SVG carries its own colours */
+.diagram { margin: 4px 0 10px; background: #ffffff; border: 1px solid var(--line); border-radius: 6px; padding: 8px; overflow-x: auto; }
+.diagram img { display: block; max-width: 100%; height: auto; margin: 0 auto; cursor: zoom-in; }
+.composer { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0 max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); display: grid; gap: 6px; }
+.composer .row { display: flex; gap: 8px; align-items: flex-end; }
+.composer textarea { flex: 1; min-width: 0; resize: none; min-height: 40px; max-height: 45vh; border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; background: var(--surface); line-height: 1.45; }
+.hint { font-size: 12px; color: var(--muted); min-height: 16px; }
+.hint.warn { color: var(--warn-fg); }
+.side { border: 1px solid var(--line); border-radius: 3px; position: sticky; top: 12px; }
+.side summary { list-style: none; padding: 10px 12px; font-weight: 600; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; justify-content: space-between; }
+.side summary::-webkit-details-marker { display: none; }
+.fields { display: grid; grid-template-columns: 110px 1fr; gap: 12px 10px; padding: 12px; align-items: center; font-size: 13px; }
+.fields .k { color: var(--muted); font-weight: 600; }
+.fields select { width: 100%; min-height: 32px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg); padding: 0 6px; }
+.links { display: flex; gap: 4px; flex-wrap: wrap; }
+.links button { border: 0; background: var(--sunken); border-radius: 3px; padding: 0 6px; line-height: 22px; cursor: pointer; color: var(--brand); font-weight: 500; }
+
+/* Create dialog */
+dialog { border: 0; border-radius: 6px; padding: 0; width: min(620px, calc(100% - 24px)); background: var(--bg); color: var(--fg); box-shadow: 0 8px 24px rgba(9,30,66,.35); }
+dialog::backdrop { background: rgba(9,30,66,.54); }
+dialog form { display: grid; gap: 12px; padding: 20px; }
+dialog h2 { margin: 0; font-size: 20px; font-weight: 500; }
+dialog label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+dialog input, dialog textarea, dialog select { border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; background: var(--surface); font-weight: 400; color: var(--fg); font-size: 14px; }
+dialog textarea { min-height: 140px; resize: vertical; }
+dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
+.zoom { width: min(1100px, calc(100% - 24px)); }
+.zoom img { display: block; width: 100%; height: auto; background: #fff; }
+
+.mobilenav { display: none; }
+.phone-only { display: none !important; }
+
+/* Phone */
+@media (max-width: 760px) {
+  .shell { grid-template-columns: 1fr; height: auto; }
+  .nav { display: none; }
+  .main { overflow: visible; }
+  .top { gap: 6px; }
+  .brand span:not(.logo) { display: none; }
+  .listen span { display: none; }
+  .search { max-width: none; }
+  .top .wide { display: none; }
+  .mobilenav { display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 56px; z-index: 4; scrollbar-width: none; }
+  .mobilenav button { flex: none; min-height: 34px; padding: 0 12px; border-radius: 17px; border: 1px solid var(--line); background: var(--bg); white-space: nowrap; cursor: pointer; }
+  .mobilenav button[aria-current="true"] { background: var(--selected); border-color: var(--brand); color: var(--brand); font-weight: 600; }
+  .phone-only { display: inline-flex !important; }
+  .titlebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .page { padding: 14px 12px 24px; }
+  .page h1 { font-size: 20px; }
+  /* Rows become cards */
+  .table thead { display: none; }
+  .table, .table tbody { display: block; }
+  .table tr.row { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+  .table tr.row td { display: block; padding: 0; border: 0; }
+  .table td.c-check { grid-column: 1; grid-row: 1 / 4; align-self: center; }
+  .table td.c-key { grid-column: 2; grid-row: 1; }
+  .table td.c-status { grid-column: 3; grid-row: 1; justify-self: end; }
+  .table td.c-sum { grid-column: 2 / 4; grid-row: 2; }
+  .table td.c-who { grid-column: 3; grid-row: 3; justify-self: end; }
+  .table td.c-upd { grid-column: 2; grid-row: 3; }
+  .table input[type=checkbox] { width: 20px; height: 20px; }
+  .board { grid-auto-columns: 82%; scroll-snap-type: x mandatory; }
+  .col { scroll-snap-align: start; }
+  /* minmax(0, ...): a wide code line or diagram must not widen the page (and the comment box with it) */
+  .issue { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  /* The keyboard covers a box pinned to the bottom: here it ends the page, kept in view while typing */
+  .composer { position: static; }
+  .composer textarea { max-height: 30vh; }
+  .side { position: static; order: -1; }
+  .issue h1 { font-size: 20px; }
+  /* The body grows with the page: held to the screen's height, the sticky bars left it after one screen */
+  html, body { height: auto; min-height: 100%; }
+  /* Under the sticky top bar and views strip, whatever height the strip has */
+  .ihead { top: var(--stick-top, 107px); }
+  .ihead h1 { font-size: 18px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .comment, .newline { scroll-margin-top: 190px; }
+  .fields { grid-template-columns: 96px 1fr; }
+  .btn { min-height: 36px; }
+}
+</style>
+<style>
+/* this desk's own color, from the server */
+{{THEME}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/v/mine"><span class="logo">{{INITIAL}}</span><span>{{TITLE}}</span></a>
+  <div class="search"><input id="search" type="search" placeholder="Search tickets" aria-label="Search tickets"></div>
+  <span class="listen" id="listen" title="Whether Claude's session is waiting for your messages"></span>
+  <div class="spacer wide"></div>
+  <div class="seg wide" role="group" aria-label="Layout">
+    <button type="button" id="as-list" aria-pressed="true">List</button>
+    <button type="button" id="as-board" aria-pressed="false">Board</button>
+  </div>
+  <button class="btn subtle wide" id="theme" type="button" title="Switch the theme">Theme</button>
+  <button class="btn subtle wide" id="logout" type="button">Sign out</button>
+  <button class="btn primary" id="create" type="button" title="Create a ticket">+ Create</button>
+</header>
+<nav class="mobilenav" id="mobilenav" aria-label="Views"></nav>
+<div class="shell">
+  <nav class="nav" id="nav" aria-label="Views"></nav>
+  <main class="main" id="main"><div class="page"><p class="empty">Loading the tickets…</p></div></main>
+</div>
+
+<dialog id="create-dialog">
+  <form method="dialog" id="create-form">
+    <h2>Create ticket</h2>
+    <label>Summary<input id="c-title" maxlength="120" required placeholder="A short title"></label>
+    <label>Description<textarea id="c-text" required placeholder="What it is about. A ```svg block shows as a diagram."></textarea></label>
+    <label>Waiting on<select id="c-waiting"></select></label>
+    <div class="hint" id="c-hint"></div>
+    <div class="row"><button class="btn subtle" type="button" id="c-cancel">Cancel</button><button class="btn primary" type="submit">Create</button></div>
+  </form>
+</dialog>
+<dialog id="zoom-dialog" class="zoom"><form method="dialog"><img id="zoom-img" alt="Diagram"><div class="row" style="padding:8px;display:flex;justify-content:flex-end"><button class="btn">Close</button></div></form></dialog>
+
+<script>
+(function () {
+  "use strict";
+  const POLL_MS = 5000;
+  const $ = (id) => document.getElementById(id);
+  const S = { version: 0, me: "owner", tickets: new Map(), messages: [], byTicket: new Map(), seen: {}, route: null, layout: "list", search: "", selected: new Set(), sending: false };
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { if (v == null || v === "") localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+  };
+  S.layout = store.get("layout") === "board" ? "board" : "list";
+
+  const STATUS = { discussing: "Open", resolved: "Resolved", done: "Done", deferred: "Deferred" };
+  const COLORS = ["#1f845a", "#8270db", "#1d7afc", "#d97008", "#c9372c", "#22a06b"];
+  // From config.json, sent with the state: the owner, Claude, the others, nobody
+  let OWNER = "owner", PEOPLE = {}, VIEWS = [], VIEW = new Map(), BOARD = [], PLAN = null, WAITING = 0;
+  function setPeople(people, plan) {
+    const owner = (people && people.owner) || { id: "owner", name: "Owner" };
+    const others = (people && people.others) || [];
+    OWNER = owner.id;
+    PEOPLE = {};
+    PEOPLE[owner.id] = [owner.name.charAt(0).toUpperCase(), owner.name, "#6e5dc6"];
+    PEOPLE.claude = ["C", "Claude", "#c25a2b"];
+    others.forEach((o, i) => { PEOPLE[o.id] = [o.name.charAt(0).toUpperCase(), o.name, COLORS[i % COLORS.length]]; });
+    PEOPLE.nobody = ["–", "Nobody", "#8590a2"];
+    const waitingOn = (id) => (t) => live(t) && open(t) && t.waitingOn === id;
+    const waiting = [["mine", "Your turn", waitingOn(OWNER)], ["claude", "With Claude", waitingOn("claude")]]
+      .concat(others.map((o) => ["w-" + o.id, "Waiting on " + o.name, waitingOn(o.id)]))
+      .concat([["nobody", "Waiting on nobody", waitingOn("nobody")]]);
+    WAITING = waiting.length;
+    VIEWS = waiting.concat([
+      ["resolved", "Resolved", (t) => live(t) && t.status === "resolved"],
+      ["done", "Done", (t) => live(t) && t.status === "done"],
+      ["deferred", "Deferred", (t) => live(t) && t.status === "deferred"],
+      ["open", "All open", (t) => live(t) && open(t)],
+      ["all", "Everything", (t) => live(t)],
+      ["archived", "Archived", (t) => !!t.archived]
+    ]);
+    VIEW = new Map(VIEWS.map((v) => [v[0], v]));
+    BOARD = [[OWNER, "Your turn"], ["claude", "With Claude"]].concat(others.map((o) => [o.id, o.name])).concat([["resolved", "Resolved"], ["done", "Done"]]);
+    PLAN = plan || null;
+    $("c-waiting").innerHTML = Object.entries(PEOPLE).filter(([id]) => id !== OWNER).concat([[OWNER, PEOPLE[OWNER]]])
+      .map(([id, p]) => '<option value="' + esc(id) + '">' + esc(p[1]) + "</option>").join("");
+  }
+  function live(t) { return !t.archived; }
+  function open(t) { return t.status === "discussing" || !t.status; }
+  function boardColumn(t) { if (t.status === "done") return "done"; if (t.status === "resolved") return "resolved"; if (t.status === "deferred") return null; return t.waitingOn === "nobody" ? null : t.waitingOn; }
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]); }
+  function inline(s) {
+    let t = esc(s);
+    t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+    t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    t = t.replace(/(https:\/\/[^\s<]+[^\s<.,;:)])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    t = t.replace(/\b(Q\d{2,3})\b/g, '<a href="#/$1">$1</a>');
+    return t;
+  }
+  // An SVG is shown as an image: nothing in it runs
+  function diagram(svg) {
+    return '<div class="diagram"><img alt="Diagram" src="' + esc("data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim())) + '"></div>';
+  }
+  function renderText(text) {
+    const out = []; let list = null, para = [];
+    const close = () => { if (list) { out.push("<" + list.tag + ">" + list.items.join("") + "</" + list.tag + ">"); list = null; } };
+    const flush = () => { if (para.length) { out.push("<p>" + para.map(inline).join("<br>") + "</p>"); para = []; } };
+    for (const raw of String(text).split("\n")) {
+      const line = raw.replace(/\s+$/, "");
+      const h = line.match(/^#{1,4}\s+(.*)$/), ul = line.match(/^\s*[-*]\s+(.*)$/), ol = line.match(/^\s*(\d+)[.)]\s+(.*)$/);
+      if (h) { flush(); close(); out.push("<h3>" + inline(h[1]) + "</h3>"); }
+      else if (ul || ol) { flush(); const tag = ul ? "ul" : "ol"; if (!list || list.tag !== tag) { close(); list = { tag, items: [] }; } // a numbered item keeps the number written, also after text between items (no renumbering from 1)
+        list.items.push(ul ? "<li>" + inline(ul[1]) + "</li>" : '<li value="' + Number(ol[1]) + '">' + inline(ol[2]) + "</li>"); }
+      else if (line.trim() === "") { flush(); close(); }
+      else { close(); para.push(line); }
+    }
+    flush(); close();
+    return out.join("");
+  }
+  function render(text) {
+    // messages written on Windows have CRLF line ends; the fences need plain ones
+    text = String(text).replace(/\r\n?/g, "\n");
+    const out = [], fence = /```([a-z]*)\n([\s\S]*?)```/g; let at = 0, m;
+    while ((m = fence.exec(text))) { out.push(renderText(text.slice(at, m.index))); out.push(m[1] === "svg" ? diagram(m[2]) : "<pre><code>" + esc(m[2]) + "</code></pre>"); at = fence.lastIndex; }
+    out.push(renderText(text.slice(at)));
+    return out.join("");
+  }
+  function ago(iso) {
+    const d = new Date(iso); if (isNaN(d)) return "";
+    const s = (Date.now() - d) / 1000;
+    if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + " min ago"; if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  }
+  function when(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); }
+  const av = (who) => { const p = PEOPLE[who] || PEOPLE.nobody; return '<span class="av" style="background:' + esc(p[2]) + '" title="' + esc(p[1]) + '">' + esc(p[0]) + "</span>"; };
+  const whoLine = (who) => '<span class="who">' + av(who) + esc((PEOPLE[who] || PEOPLE.nobody)[1]) + "</span>";
+  function loz(t) { if (t.archived) return '<span class="loz archived">Archived</span>'; const s = t.status || "discussing"; return '<span class="loz ' + esc(s) + '">' + esc(STATUS[s] || s) + "</span>"; }
+  function lastOf(id) { const ms = S.byTicket.get(id); return ms && ms.length ? ms[ms.length - 1] : null; }
+  // Read on any device: the server's mark, or this browser's
+  function seenOf(id) { const a = S.seen[id] || "", b = store.get("seen:" + id) || ""; return a > b ? a : b; }
+  function unread(id) { const m = lastOf(id); if (!m || m.from === S.me) return false; const seen = seenOf(id); return !seen || seen < m.at; }
+  function markSeen(id, at) {
+    store.set("seen:" + id, at);
+    if ((S.seen[id] || "") >= at) return;
+    S.seen[id] = at;
+    api("POST", "api/tickets/" + id + "/seen", { at }).catch(() => null);
+  }
+  // Waiting on the owner: not read yet (filled), or read and an answer is due (ring)
+  function turnDot(t) {
+    if (unread(t.id)) return '<span class="dot" title="A reply you haven\'t read"></span>';
+    if (t.waitingOn === S.me && open(t) && live(t)) return '<span class="dot read" title="Read; your answer is due"></span>';
+    return "";
+  }
+  function updatedOf(t) { const m = lastOf(t.id); return m && m.at > (t.updatedAt || "") ? m.at : t.updatedAt || ""; }
+
+  function matches(t) {
+    if (!S.search) return true;
+    const q = S.search.toLowerCase();
+    return t.id.toLowerCase().includes(q) || (t.title || "").toLowerCase().includes(q) || (t.decision || "").toLowerCase().includes(q);
+  }
+  function ticketsIn(viewId) { const v = VIEW.get(viewId) || VIEW.get("mine"); return [...S.tickets.values()].filter(v[2]).filter(matches).sort((a, b) => (updatedOf(b) < updatedOf(a) ? -1 : 1)); }
+
+  // ---- routing: #/v/<view>, #/board/<view>, #/Q64
+  function parseRoute() {
+    const h = location.hash.replace(/^#\/?/, "");
+    let m;
+    if ((m = /^(Q\d+)$/.exec(h))) return { kind: "ticket", id: m[1] };
+    if ((m = /^([vb])\/([\w-]+)$/.exec(h)) && VIEW.has(m[2])) {
+      S.layout = m[1] === "b" ? "board" : "list";
+      store.set("layout", S.layout);
+      return { kind: "view", view: m[2] };
+    }
+    const saved = store.get("view");
+    return { kind: "view", view: saved && VIEW.has(saved) ? saved : "mine" };
+  }
+  function go(hash) { if (location.hash !== hash) location.hash = hash; else route(); }
+
+  function renderNav() {
+    const counts = new Map(VIEWS.map(([id, , f]) => [id, [...S.tickets.values()].filter(f).length]));
+    const cur = S.route && S.route.kind === "view" ? S.route.view : store.get("view") || "mine";
+    const item = ([id, label]) => '<button type="button" data-view="' + id + '" aria-current="' + (id === cur) + '">' + esc(label) + '<span class="count' + (id === "mine" && counts.get(id) ? " hot" : "") + '">' + counts.get(id) + "</span></button>";
+    $("nav").innerHTML =
+      "<h3>Waiting</h3>" + VIEWS.slice(0, WAITING).map(item).join("") +
+      "<h3>Status</h3>" + VIEWS.slice(WAITING, WAITING + 3).map(item).join("") +
+      "<h3>Lists</h3>" + VIEWS.slice(WAITING + 3).map(item).join("") +
+      (PLAN ? '<h3>Links</h3><button type="button" data-href="' + esc(PLAN.url) + '">' + esc(PLAN.label) + " ↗</button>" : "");
+    $("mobilenav").innerHTML = VIEWS.map(([id, label]) => '<button type="button" data-view="' + id + '" aria-current="' + (id === cur) + '">' + esc(label) + " · " + counts.get(id) + "</button>").join("") +
+      (PLAN ? '<button type="button" data-href="' + esc(PLAN.url) + '">' + esc(PLAN.label) + " ↗</button>" : "") + '<button type="button" id="m-theme">Theme</button><button type="button" id="m-logout">Sign out</button>';
+    $("as-list").setAttribute("aria-pressed", S.layout === "list");
+    $("as-board").setAttribute("aria-pressed", S.layout === "board");
+  }
+
+
+  function bulkBar() {
+    if (!S.selected.size) return "";
+    const any = [...S.selected].map((id) => S.tickets.get(id)).filter(Boolean);
+    const archived = any.every((t) => t.archived);
+    return '<div class="bulk"><b>' + S.selected.size + " selected</b>" +
+      (archived ? '<button class="btn" type="button" data-bulk="unarchive">Unarchive</button>' : '<button class="btn" type="button" data-bulk="archive">Archive</button>') +
+      '<button class="btn subtle" type="button" data-bulk="clear">Clear</button></div>';
+  }
+
+  function renderView(viewId) {
+    store.set("view", viewId);
+    // Back on a ticket later, it opens again at its first unread comment
+    S.shownTicket = null;
+    const v = VIEW.get(viewId);
+    const list = ticketsIn(viewId);
+    const seg = '<div class="seg phone-only" role="group" aria-label="Layout"><button type="button" data-layout="v" aria-pressed="' + (S.layout === "list") + '">List</button><button type="button" data-layout="b" aria-pressed="' + (S.layout === "board") + '">Board</button></div>';
+    let html = '<div class="page"><div class="titlebar"><h1>' + esc(v[1]) + "</h1>" + seg + "</div>" + '<p class="lede">' + list.length + " ticket" + (list.length === 1 ? "" : "s") + (S.search ? ' matching "' + esc(S.search) + '"' : "") + "</p>";
+    if (S.layout === "board" && viewId !== "archived") html += boardHtml(list, viewId);
+    else html += bulkBar() + tableHtml(list);
+    $("main").innerHTML = html + "</div>";
+  }
+
+  function tableHtml(list) {
+    if (!list.length) return '<p class="empty">Nothing here.</p>';
+    const allOn = list.every((t) => S.selected.has(t.id));
+    const rows = list.map((t) => {
+      const u = unread(t.id);
+      return '<tr class="row" data-open="' + esc(t.id) + '">' +
+        '<td class="c-check"><input type="checkbox" data-pick="' + esc(t.id) + '" aria-label="Select ' + esc(t.id) + '"' + (S.selected.has(t.id) ? " checked" : "") + "></td>" +
+        '<td class="c-key"><span class="key">' + esc(t.id) + "</span> " + turnDot(t) + "</td>" +
+        '<td class="c-sum sum">' + (u ? '<span class="loz new">New reply</span>' : "") + '<span class="t' + (u ? " unread" : "") + '">' + esc(t.title || "") + "</span></td>" +
+        '<td class="c-status">' + loz(t) + "</td>" +
+        '<td class="c-who">' + whoLine(t.waitingOn || "nobody") + "</td>" +
+        '<td class="c-upd muted">' + esc(ago(updatedOf(t))) + "</td></tr>";
+    }).join("");
+    return '<table class="table"><thead><tr><th><input type="checkbox" data-pick="*" aria-label="Select all"' + (allOn ? " checked" : "") + '></th><th>Key</th><th>Summary</th><th>Status</th><th>Waiting on</th><th>Updated</th></tr></thead><tbody>' + rows + "</tbody></table>";
+  }
+
+  function boardHtml(list) {
+    const cols = BOARD.map(([id, label]) => {
+      const cards = list.filter((t) => boardColumn(t) === id);
+      return '<section class="col"><h2>' + esc(label) + " <span>" + cards.length + "</span></h2>" + cards.map((t) =>
+        '<article class="card" data-open="' + esc(t.id) + '"><div>' + turnDot(t) + " " + (unread(t.id) ? "<b>" + esc(t.title || "") + "</b>" : esc(t.title || "")) + "</div>" +
+        '<div class="foot"><span class="key">' + esc(t.id) + "</span>" + loz(t) + av(t.waitingOn || "nobody") + "</div></article>").join("") + "</section>";
+    }).join("");
+    return '<div class="board">' + cols + "</div>";
+  }
+
+  function renderTicket(id) {
+    const t = S.tickets.get(id);
+    if (!t) { $("main").innerHTML = '<div class="page"><p class="empty">No ticket ' + esc(id) + '. <a href="#/v/mine">Back to your turn</a></p></div>'; return; }
+    const ms = S.byTicket.get(id) || [];
+    const view = VIEW.get(store.get("view") || "mine") || VIEW.get("mine");
+    const isLinks = (arr) => (arr || []).filter((x) => /^Q\d+$/.test(x));
+    const linkBtns = (arr) => isLinks(arr).length ? '<span class="links">' + isLinks(arr).map((x) => '<button type="button" data-open="' + esc(x) + '">' + esc(x) + "</button>").join("") + "</span>" : '<span class="muted">None</span>';
+    const draftKey = "draft:" + id;
+    // Opened now: what was read before, so the first unread message is marked and scrolled to
+    if (S.shownTicket !== id) S.openSeen = seenOf(id);
+    const firstNew = ms.find((m) => m.from !== S.me && (!S.openSeen || m.at > S.openSeen)) || null;
+    const html =
+      '<div class="page">' +
+      '<div class="crumbs"><button type="button" data-view="' + view[0] + '">' + esc(view[1]) + "</button> / <span>" + esc(id) + "</span></div>" +
+      '<div class="issue"><div>' +
+      '<div class="ihead"><h1 title="' + esc(t.title || "") + '">' + esc(t.title || "") + "</h1>" +
+        (t.archived ? '<button class="btn" type="button" data-act="unarchive">Unarchive</button>' : '<button class="btn" type="button" data-act="archive">Archive</button>') +
+      "</div>" +
+      (t.decision ? '<div class="decision"><b>Decision:</b> ' + inline(t.decision) + "</div>" : "") +
+      '<div class="section-title">Activity</div>' +
+      (ms.length ? ms.map((m) => (firstNew === m ? '<div class="newline" id="first-new">New</div>' : "") + '<div class="comment' + (m.from === S.me ? " mine" : "") + '">' + av(m.from) + '<div><div class="meta"><b>' + esc((PEOPLE[m.from] || [0, m.from])[1]) + "</b>" + esc(when(m.at)) + '</div><div class="body">' + render(m.text || "") + "</div></div></div>").join("") : '<p class="empty">No comments yet.</p>') +
+      '<form class="composer" id="composer-form"><div class="row"><textarea id="composer" rows="1" maxlength="400000" placeholder="Add a comment for ' + esc(t.waitingOn === OWNER || !PEOPLE[t.waitingOn] || t.waitingOn === "nobody" ? "Claude" : PEOPLE[t.waitingOn][1]) + '"></textarea><button class="btn primary" type="submit">Send</button></div><div class="hint" id="hint"></div></form>' +
+      "</div>" +
+      '<details class="side" open id="side"><summary>Details <span class="muted">' + loz(t) + "</span></summary><div class=\"fields\">" +
+        '<span class="k">Status</span><select id="f-status">' + Object.entries(STATUS).map(([k, l]) => '<option value="' + k + '"' + ((t.status || "discussing") === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select>" +
+        '<span class="k">Waiting on</span><select id="f-waiting">' + Object.entries(PEOPLE).map(([k, [, l]]) => '<option value="' + k + '"' + ((t.waitingOn || "nobody") === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select>" +
+        '<span class="k">Blocks</span>' + linkBtns(t.blocks) +
+        '<span class="k">Blocked by</span>' + linkBtns(t.blockedBy) +
+        '<span class="k">Plan steps</span><span>' + ((t.steps || []).length ? (t.steps || []).map((s) => PLAN ? '<a href="' + esc(PLAN.url) + '" target="_blank" rel="noopener">' + esc(s) + "</a>" : esc(s)).join(", ") : '<span class="muted">None</span>') + "</span>" +
+        '<span class="k">Started by</span>' + whoLine(t.startedBy || OWNER) +
+        '<span class="k">Created</span><span>' + esc(when(t.createdAt)) + "</span>" +
+        '<span class="k">Updated</span><span>' + esc(when(updatedOf(t))) + "</span>" +
+        (t.archived ? '<span class="k">Archived</span><span>' + esc(when(t.archivedAt)) + "</span>" : "") +
+      "</div></details>" +
+      "</div></div>";
+    const keep = document.activeElement && document.activeElement.id === "composer" ? $("composer").value : null;
+    $("main").innerHTML = html;
+    const box = $("composer");
+    box.value = keep != null ? keep : store.get(draftKey) || "";
+    autosize();
+    if (keep != null) box.focus();
+    if (matchMedia("(max-width: 760px)").matches) {
+      $("side").open = false;
+      document.documentElement.style.setProperty("--stick-top", document.querySelector(".top").offsetHeight + $("mobilenav").offsetHeight + "px");
+    }
+    if (ms.length) markSeen(id, ms[ms.length - 1].at);
+    // A ticket opens at its first unread comment, else at its newest
+    const last = ms.length ? ms[ms.length - 1].at : null;
+    if (S.shownTicket !== id) {
+      // The composer sticks to the bottom, so it always counts as in view: scroll the page itself (the window on a phone)
+      const target = $("first-new");
+      requestAnimationFrame(() => {
+        if (target) target.scrollIntoView({ block: "start" });
+        else { $("main").scrollTop = $("main").scrollHeight; window.scrollTo(0, document.documentElement.scrollHeight); }
+      });
+    }
+    S.shownTicket = id; S.shownLast = last;
+  }
+
+  function route() {
+    // The views come with the first state
+    if (!S.version) return;
+    S.route = parseRoute();
+    renderNav();
+    if (S.route.kind === "ticket") renderTicket(S.route.id);
+    else renderView(S.route.view);
+  }
+
+  // ---- data
+  async function api(method, url, body) {
+    const r = await fetch(url, { method, headers: Object.assign({ "X-Desk": "1" }, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
+    if (r.status === 401) { location.reload(); throw new Error("Signed out"); }
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || "The app refused it (" + r.status + ")");
+    return data;
+  }
+  async function refresh(force) {
+    let data;
+    try { data = await api("GET", "api/state?since=" + (force ? 0 : S.version)); } catch (e) { return; }
+    showListening(data.listening);
+    if (data.unchanged) return;
+    if (!S.version) setPeople(data.people, data.plan);
+    S.version = data.version; S.me = data.me || OWNER;
+    S.tickets = new Map(Object.entries(data.tickets).map(([id, t]) => [id, Object.assign({ id }, t)]));
+    S.messages = data.messages;
+    S.seen = data.seen || {};
+    S.byTicket = new Map();
+    for (const m of S.messages.slice().sort((a, b) => (a.at < b.at ? -1 : 1))) { if (!S.byTicket.has(m.q)) S.byTicket.set(m.q, []); S.byTicket.get(m.q).push(m); }
+    for (const id of [...S.selected]) if (!S.tickets.has(id)) S.selected.delete(id);
+    // Not while a select is open, nor while typing unless this ticket got a new comment
+    const active = document.activeElement;
+    if (active && active.tagName === "SELECT") return;
+    if (active && active.id === "composer" && S.route && S.route.kind === "ticket") {
+      const last = lastOf(S.route.id);
+      if (!last || last.at === S.shownLast) return;
+    }
+    route();
+  }
+  // Claude's session wakes on a message only while its waiter runs; otherwise say so here
+  function showListening(on) {
+    const el = $("listen");
+    el.classList.toggle("on", !!on);
+    el.innerHTML = "<span>" + (on ? "Claude is listening" : "Claude isn't listening: tell the session") + "</span>";
+    el.title = on ? "A message here wakes Claude's session" : "No Claude session is waiting: write in the terminal to get an answer";
+  }
+  async function patch(id, body) { await api("PATCH", "api/tickets/" + id, body); }
+  function hint(text, warn) { const h = $("hint"); if (!h) return; h.textContent = text || ""; h.classList.toggle("warn", !!warn); }
+  function autosize() { const t = $("composer"); if (!t) return; t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight + 2, innerHeight * 0.45) + "px"; }
+  // On a phone: the box and Send above the keyboard, which covers the bottom of the page without resizing it
+  function keepComposerInView() {
+    const form = $("composer-form");
+    if (!form || !matchMedia("(max-width: 760px)").matches) return;
+    const vv = window.visualViewport;
+    const visibleBottom = vv ? vv.offsetTop + vv.height : innerHeight;
+    const below = form.getBoundingClientRect().bottom - visibleBottom;
+    if (below > 0) window.scrollBy(0, below + 8);
+  }
+
+  async function sendComment() {
+    const id = S.route && S.route.id, box = $("composer");
+    const text = box ? box.value.trim() : "";
+    if (!id || !text || S.sending) return;
+    S.sending = true; hint("Sending…");
+    try { await api("POST", "api/tickets/" + id + "/messages", { text }); store.set("draft:" + id, ""); box.value = ""; box.blur(); await refresh(); }
+    catch (e) { hint("Not sent: " + e.message + ". Your text is still in the box.", true); }
+    S.sending = false;
+  }
+  async function bulk(action) {
+    const ids = [...S.selected];
+    try {
+      for (const id of ids) {
+        const t = S.tickets.get(id); if (!t) continue;
+        if (action === "archive") await patch(id, { archived: true });
+        else if (action === "unarchive") await patch(id, { archived: false });
+      }
+      S.selected.clear();
+      await refresh();
+    } catch (e) { alert(e.message); }
+  }
+
+  // ---- events
+  document.addEventListener("click", (e) => {
+    const el = e.target;
+    const pick = el.closest("[data-pick]");
+    if (pick) {
+      e.stopPropagation();
+      const id = pick.dataset.pick;
+      if (id === "*") { const list = ticketsIn(S.route.view); const on = pick.checked; for (const t of list) on ? S.selected.add(t.id) : S.selected.delete(t.id); }
+      else pick.checked ? S.selected.add(id) : S.selected.delete(id);
+      route(); return;
+    }
+    const lay = el.closest("[data-layout]"); if (lay) { go("#/" + lay.dataset.layout + "/" + (S.route.kind === "view" ? S.route.view : "open")); return; }
+    if (el.closest("#m-theme")) { $("theme").click(); return; }
+    if (el.closest("#m-logout")) { $("logout").click(); return; }
+    const v = el.closest("[data-view]"); if (v) { go("#/" + (S.layout === "board" ? "b" : "v") + "/" + v.dataset.view); return; }
+    const href = el.closest("[data-href]"); if (href) { window.open(href.dataset.href, "_blank", "noopener"); return; }
+    const b = el.closest("[data-bulk]"); if (b) { if (b.dataset.bulk === "clear") { S.selected.clear(); route(); } else bulk(b.dataset.bulk); return; }
+    const act = el.closest("[data-act]");
+    if (act && S.route.kind === "ticket") { patch(S.route.id, { archived: act.dataset.act === "archive" }).then(() => refresh()).catch((x) => hint(x.message, true)); return; }
+    const img = el.closest(".diagram img"); if (img) { $("zoom-img").src = img.src; $("zoom-dialog").showModal(); return; }
+    const o = el.closest("[data-open]"); if (o && !el.closest("a")) { go("#/" + o.dataset.open); return; }
+  });
+  document.addEventListener("change", (e) => {
+    const el = e.target;
+    if (el.id === "f-status" && S.route.kind === "ticket") patch(S.route.id, { status: el.value }).then(() => { el.blur(); refresh(); }).catch((x) => hint(x.message, true));
+    else if (el.id === "f-waiting" && S.route.kind === "ticket") patch(S.route.id, { waitingOn: el.value }).then(() => { el.blur(); refresh(); }).catch((x) => hint(x.message, true));
+  });
+  document.addEventListener("input", (e) => { if (e.target.id === "composer") { autosize(); keepComposerInView(); if (S.route && S.route.id) store.set("draft:" + S.route.id, e.target.value); } });
+  // The keyboard slides in after the focus
+  document.addEventListener("focusin", (e) => { if (e.target.id === "composer") setTimeout(keepComposerInView, 350); });
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", () => { if (document.activeElement && document.activeElement.id === "composer") keepComposerInView(); });
+  document.addEventListener("submit", (e) => { if (e.target.id === "composer-form") { e.preventDefault(); sendComment(); } });
+  // Enter sends on a keyboard; on a phone the Send button does
+  document.addEventListener("keydown", (e) => {
+    if (e.target.id === "composer" && e.key === "Enter" && !e.shiftKey && !e.isComposing && !matchMedia("(pointer: coarse)").matches) { e.preventDefault(); sendComment(); }
+    if (e.key === "/" && document.activeElement === document.body) { e.preventDefault(); $("search").focus(); }
+  });
+  $("search").addEventListener("input", (e) => { S.search = e.target.value.trim(); if (S.route && S.route.kind === "ticket" && S.search) go("#/v/all"); else route(); });
+  $("as-list").addEventListener("click", () => go("#/v/" + (S.route.kind === "view" ? S.route.view : store.get("view") || "mine")));
+  $("as-board").addEventListener("click", () => go("#/b/" + (S.route.kind === "view" ? S.route.view : "open")));
+  $("logout").addEventListener("click", async () => { await fetch("logout", { method: "POST" }).catch(() => null); location.reload(); });
+  function applyTheme() { const t = store.get("theme"); if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
+  $("theme").addEventListener("click", () => {
+    const dark = document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+    store.set("theme", dark ? "light" : "dark"); applyTheme();
+  });
+  $("create").addEventListener("click", () => { $("c-hint").textContent = ""; $("create-dialog").showModal(); $("c-title").focus(); });
+  $("c-cancel").addEventListener("click", () => $("create-dialog").close());
+  $("create-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const title = $("c-title").value.trim(), text = $("c-text").value.trim();
+    if (!title || !text) { $("c-hint").textContent = "A summary and a description, please."; return; }
+    try {
+      const r = await api("POST", "api/tickets", { title, text, waitingOn: $("c-waiting").value });
+      $("c-title").value = ""; $("c-text").value = ""; $("create-dialog").close();
+      await refresh(); go("#/" + r.id);
+    } catch (x) { $("c-hint").textContent = "Not created: " + x.message; }
+  });
+  window.addEventListener("hashchange", () => { S.selected.clear(); route(); window.scrollTo(0, 0); $("main").scrollTop = 0; });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+
+  applyTheme();
+  refresh(true);
+  setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
+})();
+</script>
+</body>
+</html>
